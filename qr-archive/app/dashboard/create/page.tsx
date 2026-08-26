@@ -9,8 +9,8 @@ export default function CreateQRPage() {
   const [fileId, setFileId] = useState<string | null>(null); 
   const [isUploading, setIsUploading] = useState(false);
 
-  // Il link dinamico si crea SOLO se abbiamo un ID reale dal database
-  const qrLink = fileId ? `https://iltuosito.com/view/${fileId}` : '';
+    // window.location.origin capisce in automatico se sei su localhost o sul sito vero
+    const qrLink = fileId ? `${window.location.origin}/view/${fileId}` : '';
 
   // 🚀 QUESTA È LA FUNZIONE CHE FA LA MAGIA
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
