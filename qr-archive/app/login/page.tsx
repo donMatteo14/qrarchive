@@ -1,36 +1,50 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react'; // Aggiungi questo in cima al file tra gli import
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState(''); // 👈 Nuovo stato per l'errore
   const router = useRouter();
-  // Controllo se l'utente è già loggato
-    useEffect(() => {
-        const controllaSeLoggato = async () => {
-        const { data } = await supabase.auth.getUser();
-        if (data.user) {
-            router.push('/dashboard'); // Se sei già dentro, vai alla dashboard!
-        }
-        };
-        controllaSeLoggato();
-    }, [router]);
+
+  // Controllo iniziale se già loggato
+  useEffect(() => {
+    const controllaSeLoggato = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data.user) {
+        router.push('/dashboard');
+      }
+    };
+    controllaSeLoggato();
+  }, [router]);
+
   // Funzione per REGISTRARSI
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg(''); // Puliamo vecchi errori
+
+    // Controllo client-side sulla lunghezza
+    if (password.length < 6) {
+      setErrorMsg('La password deve avere almeno 6 caratteri.');
+      return;
+    }
+
     setIsLoading(true);
     const { error } = await supabase.auth.signUp({ email, password });
     
     if (error) {
-      alert(`Errore di registrazione: ${error.message}`);
+      // Se l'utente esiste già, Supabase restituisce un errore specifico
+      if (error.message.includes('already registered')) {
+        setErrorMsg('Questa email è già registrata. Prova ad accedere.');
+      } else {
+        setErrorMsg('Errore durante la registrazione. Riprova.');
+      }
     } else {
-      alert('Registrazione completata! Ora sei dentro.');
-      router.push('/dashboard/create'); // Ti manda alla pagina di creazione QR
+      router.push('/dashboard'); 
     }
     setIsLoading(false);
   };
@@ -38,13 +52,15 @@ export default function LoginPage() {
   // Funzione per ACCEDERE
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg(''); // Puliamo vecchi errori
+
     setIsLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     
     if (error) {
-      alert(`Errore di accesso: credenziali errate.`);
+      setErrorMsg('Email o password non corretti. Riprova.');
     } else {
-      router.push('/dashboard/create'); // Ti manda alla pagina di creazione QR
+      router.push('/dashboard');
     }
     setIsLoading(false);
   };
@@ -55,38 +71,55 @@ export default function LoginPage() {
         <h1 className="text-2xl font-bold mb-2 text-gray-800">Benvenuto</h1>
         <p className="text-gray-500 mb-6 text-sm">Accedi o registrati per gestire i tuoi QR Code.</p>
 
+        {/* Messaggio di errore elegante */}
+        {errorMsg && (
+          <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm font-medium rounded-lg border border-red-200">
+            {errorMsg}
+          </div>
+        )}
+
         <form className="flex flex-col gap-4">
           <input
             type="email"
             placeholder="La tua email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            // Se c'è un errore, il bordo diventa rosso!
+            className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+              errorMsg ? 'border-red-400 bg-red-50' : 'border-gray-300'
+            }`}
             required
           />
-          <input
-            type="password"
-            placeholder="La tua password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
+          
+          <div className="text-left w-full">
+            <input
+              type="password"
+              placeholder="La tua password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={`w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+                errorMsg ? 'border-red-400 bg-red-50' : 'border-gray-300'
+              }`}
+              required
+            />
+            {/* Piccolo suggerimento visivo per l'utente */}
+            <p className="text-xs text-gray-400 mt-1 ml-1">Minimo 6 caratteri</p>
+          </div>
 
           <div className="flex gap-2 mt-4">
             <button
               onClick={handleLogin}
-              disabled={isLoading}
-              className="flex-1 bg-black hover:bg-gray-800 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+              disabled={isLoading || !email || !password} // Disabilita se i campi sono vuoti
+              className="flex-1 bg-black hover:bg-gray-800 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50"
             >
-              Accedi
+              {isLoading ? '...' : 'Accedi'}
             </button>
             <button
               onClick={handleSignUp}
-              disabled={isLoading}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+              disabled={isLoading || !email || !password}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors disabled:opacity-50"
             >
-              Registrati
+              {isLoading ? '...' : 'Registrati'}
             </button>
           </div>
         </form>

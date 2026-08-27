@@ -40,7 +40,7 @@ export default function HomePage() {
           href="/login" 
           className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-10 rounded-full shadow-lg transition-transform hover:scale-105 text-lg"
         >
-          Inizia Gratis / Accedi
+          Inizia Gratis
         </Link>
       </div>
 
