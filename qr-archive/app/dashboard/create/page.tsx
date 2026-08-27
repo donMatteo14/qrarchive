@@ -1,26 +1,70 @@
-'use client'; // 👈 Fondamentale in Next.js: dice che questa pagina è interattiva
+'use client';
 
 import { useState } from 'react';
-import { QRCodeSVG } from 'qrcode.react'; // Importiamo il "motore" del QR
+import { QRCodeSVG } from 'qrcode.react';
+import { supabase } from '@/lib/supabase'; // 👈 Importiamo il "ponte" verso il database!
 
 export default function CreateQRPage() {
-  // Simuliamo un ID unico generato dal database (es. quando l'utente carica un file)
-  const [fileId, setFileId] = useState('abcd-1234'); 
-  
-  // Questo è l'indirizzo dinamico che il QR conterrà
-  const qrLink = `https://iltuosito.com/view/${fileId}`;
+  // Stati per gestire l'interfaccia
+  const [fileId, setFileId] = useState<string | null>(null); 
+  const [isUploading, setIsUploading] = useState(false);
 
-  // Funzione extra: permette all'utente di scaricare il QR come immagine
+    // window.location.origin capisce in automatico se sei su localhost o sul sito vero
+    const qrLink = fileId ? `${window.location.origin}/view/${fileId}` : '';
+
+  // 🚀 QUESTA È LA FUNZIONE CHE FA LA MAGIA
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true); // Mostriamo all'utente che stiamo caricando...
+
+    try {
+      // 1. Diamo un nome unico al file (es. aggiungendo la data di oggi)
+      const uniqueName = `${Date.now()}-${file.name}`;
+      
+      // 2. Carichiamo il file fisicamente nel "Bucket" (Storage)
+      const { error: uploadError } = await supabase.storage
+        .from('qr-files')
+        .upload(uniqueName, file);
+
+      if (uploadError) throw uploadError;
+
+      // 3. Chiediamo a Supabase il link pubblico del file appena caricato
+      const { data: publicUrlData } = supabase.storage
+        .from('qr-files')
+        .getPublicUrl(uniqueName);
+      
+      const fileUrl = publicUrlData.publicUrl;
+
+      // 4. Salviamo i dati nella tabella "qr_codes" (Database)
+      const { data: dbData, error: dbError } = await supabase
+        .from('qr_codes')
+        .insert([{ file_name: file.name, file_url: fileUrl }])
+        .select('id') // Chiediamo a Supabase di restituirci l'ID univoco appena generato!
+        .single();
+
+      if (dbError) throw dbError;
+
+      // 5. Successo! Diciamo a React di mostrare il QR code con il vero ID
+      setFileId(dbData.id);
+
+    } catch (error) {
+      console.error('Errore durante il caricamento:', error);
+      alert('Ops! C\'è stato un errore durante il caricamento.');
+    } finally {
+      setIsUploading(false); // Finito il caricamento (con successo o errore)
+    }
+  };
+
+  // Funzione per scaricare il QR (identica a prima)
   const scaricaQR = () => {
     const svg = document.getElementById('qr-code-svg');
     if (!svg) return;
-    
-    // Converte l'SVG in un'immagine scaricabile
     const svgData = new XMLSerializer().serializeToString(svg);
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
     const img = new Image();
-    
     img.onload = () => {
       canvas.width = img.width;
       canvas.height = img.height;
@@ -36,32 +80,56 @@ export default function CreateQRPage() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-6">
-      
       <div className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full text-center">
-        <h1 className="text-2xl font-bold mb-2 text-gray-800">Crea il tuo QR Code</h1>
-        <p className="text-gray-500 mb-6 text-sm">Il QR è già pronto! Collegato al file ID: {fileId}</p>
-
-        {/* --- IL QUADRATINO DEL QR CODE --- */}
-        <div className="flex justify-center p-4 bg-gray-100 rounded-xl mb-6">
-          <QRCodeSVG 
-            id="qr-code-svg" // Serve per la funzione di download
-            value={qrLink}   // 👈 L'indirizzo che si aprirà scansionando!
-            size={200}       // Dimensione in pixel
-            bgColor={"#ffffff"} // Colore di sfondo (bianco)
-            fgColor={"#000000"} // Colore dei quadratini (nero)
-            level={"H"}      // Livello di correzione errori (H è il più alto, utile se il QR si rovina)
-            marginSize={2}   // Bordo bianco attorno al QR
-          />
-        </div>
-
-        {/* Pulsante per scaricare il QR code sul computer dell'utente */}
-        <button 
-          onClick={scaricaQR}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
-        >
-          Scarica QR Code (PNG)
-        </button>
+        <h1 className="text-2xl font-bold mb-4 text-gray-800">Generatore QR Dinamico</h1>
         
+        {/* Se NON c'è ancora un ID, mostriamo il bottone di caricamento */}
+        {!fileId ? (
+          <div className="mb-6">
+            <p className="text-gray-500 mb-4 text-sm">Carica un file (PDF o Immagine) per generare il tuo QR Code.</p>
+            <label className={`cursor-pointer inline-block w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors ${isUploading ? 'opacity-50' : ''}`}>
+              {isUploading ? 'Caricamento in corso...' : 'Scegli un file'}
+              <input 
+                type="file" 
+                className="hidden" 
+                onChange={handleFileUpload} 
+                disabled={isUploading}
+              />
+            </label>
+          </div>
+        ) : (
+          /* Se c'è l'ID, mostriamo il QR Code! */
+          <div>
+            <p className="text-green-600 font-medium mb-2">File caricato con successo!</p>
+            <p className="text-gray-400 text-xs mb-6 truncate">ID: {fileId}</p>
+
+            <div className="flex justify-center p-4 bg-gray-100 rounded-xl mb-6">
+              <QRCodeSVG 
+                id="qr-code-svg"
+                value={qrLink} 
+                size={200}
+                bgColor={"#ffffff"}
+                fgColor={"#000000"}
+                level={"H"}
+                marginSize={2}
+              />
+            </div>
+
+            <button 
+              onClick={scaricaQR}
+              className="w-full bg-black hover:bg-gray-800 text-white font-semibold py-3 px-4 rounded-lg transition-colors mb-3"
+            >
+              Scarica QR Code (PNG)
+            </button>
+            
+            <button 
+              onClick={() => setFileId(null)}
+              className="w-full text-gray-500 hover:text-gray-800 font-medium py-2 text-sm"
+            >
+              Crea un altro QR
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
