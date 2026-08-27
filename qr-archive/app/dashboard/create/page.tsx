@@ -20,33 +20,48 @@ export default function CreateQRPage() {
     setIsUploading(true); // Mostriamo all'utente che stiamo caricando...
 
     try {
-      // 1. Diamo un nome unico al file (es. aggiungendo la data di oggi)
+      // NUOVO: 1. Scopriamo chi è l'utente attualmente loggato
+      const { data: authData } = await supabase.auth.getUser();
+      const user = authData.user;
+
+      // Se per qualche motivo l'utente non è loggato, blocchiamo tutto
+      if (!user) {
+        alert("Devi fare il login per caricare un file!");
+        setIsUploading(false);
+        return;
+      }
+
+      // 2. Diamo un nome unico al file
       const uniqueName = `${Date.now()}-${file.name}`;
       
-      // 2. Carichiamo il file fisicamente nel "Bucket" (Storage)
+      // 3. Carichiamo il file fisicamente nel Bucket
       const { error: uploadError } = await supabase.storage
         .from('qr-files')
         .upload(uniqueName, file);
 
       if (uploadError) throw uploadError;
 
-      // 3. Chiediamo a Supabase il link pubblico del file appena caricato
+      // 4. Chiediamo a Supabase il link pubblico del file
       const { data: publicUrlData } = supabase.storage
         .from('qr-files')
         .getPublicUrl(uniqueName);
       
       const fileUrl = publicUrlData.publicUrl;
 
-      // 4. Salviamo i dati nella tabella "qr_codes" (Database)
+      // NUOVO: 5. Salviamo i dati associandoli all'ID dell'utente!
       const { data: dbData, error: dbError } = await supabase
         .from('qr_codes')
-        .insert([{ file_name: file.name, file_url: fileUrl }])
-        .select('id') // Chiediamo a Supabase di restituirci l'ID univoco appena generato!
+        .insert([{ 
+          file_name: file.name, 
+          file_url: fileUrl,
+          user_id: user.id // 👈 Firmiamo il salvataggio!
+        }])
+        .select('id') 
         .single();
 
       if (dbError) throw dbError;
 
-      // 5. Successo! Diciamo a React di mostrare il QR code con il vero ID
+      // Successo! 
       setFileId(dbData.id);
 
     } catch (error) {
