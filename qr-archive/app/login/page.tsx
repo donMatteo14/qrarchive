@@ -3,13 +3,23 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import { useEffect } from 'react'; // Aggiungi questo in cima al file tra gli import
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-
+  // Controllo se l'utente è già loggato
+    useEffect(() => {
+        const controllaSeLoggato = async () => {
+        const { data } = await supabase.auth.getUser();
+        if (data.user) {
+            router.push('/dashboard'); // Se sei già dentro, vai alla dashboard!
+        }
+        };
+        controllaSeLoggato();
+    }, [router]);
   // Funzione per REGISTRARSI
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
