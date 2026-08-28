@@ -34,12 +34,53 @@ Carica i tuoi contenuti su QRArchive, ottieni immediatamente un QR Code pronto a
 
 ---
 
+## Installazione e Configurazione Locale
+
+Se desideri eseguire il progetto in locale, segui questi passaggi:
+
+### Prerequisiti
+- [Node.js](https://nodejs.org/) installato sul tuo computer (versione LTS consigliata).
+- Un account/progetto attivo su [Supabase](https://supabase.com/).
+
+### 1. Clona il repository
+```bash
+git clone https://github.com/tuo-username/qrarchive.git
+cd qrarchive
+```
+
+### 2. Installa le dipendenze
+Installa i pacchetti necessari, incluse le librerie di gestione dei QR Code e Supabase:
+```bash
+npm install @supabase/supabase-js
+npm install qrcode.react 
+```
+
+### 3. Configura le variabili d'ambiente
+Crea un file `.env.local` nella directory principale del progetto e inserisci l'URL del tuo progetto Supabase e la chiave pubblica anonima:
+
+```env
+# URL del tuo progetto Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://tuo-progetto.supabase.co
+
+# Chiave pubblica anonima (Anon Key)
+NEXT_PUBLIC_SUPABASE_ANON_KEY=la-tua-chiave-pubblica-anonima
+```
+> *Nota: Se utilizzi React/Vite o un altro framework al posto di Next.js, sostituisci il prefisso `NEXT_PUBLIC_` con quello appropriato (es. `VITE_` per Vite).*
+
+### 4. Avvia l'applicazione
+```bash
+npm run dev
+# oppure
+npm start
+```
+---
+
 ## Versione e Stato del Progetto
 
-- **Versione Attuale:** `v1.00`
+- **Versione Attuale:** `v1.01`
 - **Stato:** Release Iniziale
 
-> *Nota:* Trattandosi della versione di lancio (v1.00), potrebbero verificarsi bug o comportamenti inattesi. Il tuo feedback è fondamentale per migliorare l'applicazione!
+> *Nota:* Trattandosi della versione di lancio (v1.01), potrebbero verificarsi bug o comportamenti inattesi. Il tuo feedback è fondamentale per migliorare l'applicazione!
 
 ---
 
